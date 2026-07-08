@@ -116,11 +116,11 @@ data
 docs/modelzoo_statistics.md
 mmyolo/.mim
 output/
-work_dirs
+#work_dirs
 yolov5-6.1/
 
 # Pytorch
-*.pth
+#*.pth
 *.pt
 *.py~
 *.sh~
