@@ -2,15 +2,17 @@ _base_ = ['../_base_/default_runtime.py', '../_base_/det_p5_tta.py']
 
 # ========================Frequently modified parameters======================
 # -----data related-----
-data_root = 'data/coco/'  # Root path of data
+data_root = 'data/geral-thermal-2024/'  # Root path of data
 # Path of train annotation file
-train_ann_file = 'annotations/instances_train2017.json'
-train_data_prefix = 'train2017/'  # Prefix of train image path
+train_ann_file = 'train_coco.json'
+train_data_prefix = 'train/images/'  # Prefix of train image path
 # Path of val annotation file
-val_ann_file = 'annotations/instances_val2017.json'
-val_data_prefix = 'val2017/'  # Prefix of val image path
+val_ann_file = 'val_coco.json'
+val_data_prefix = 'val/images/'  # Prefix of val image path
 
-num_classes = 80  # Number of classes for classification
+num_classes = 5  # Number of classes for classification
+class_name = ('Car','Person','Motocycle','Truck','Animal')
+metainfo = dict(classes=class_name, palette=[(20,220,60),(0,0,255),(255,0,0),(0,220,220),(220,20,60)])
 # Batch size of a single GPU during training
 train_batch_size_per_gpu = 16
 # Worker to pre-fetch data for each single GPU during training
@@ -21,7 +23,7 @@ persistent_workers = True
 # -----train val related-----
 # Base learning rate for optim_wrapper. Corresponding to 8xb16=64 bs
 base_lr = 0.01
-max_epochs = 500  # Maximum training epochs
+max_epochs = 200  # Maximum training epochs
 # Disable mosaic augmentation for final 10 epochs (stage 2)
 close_mosaic_epochs = 10
 
@@ -99,8 +101,8 @@ model = dict(
     type='YOLODetector',
     data_preprocessor=dict(
         type='YOLOv5DetDataPreprocessor',
-        mean=[0., 0., 0.],
-        std=[255., 255., 255.],
+        mean=[128., 128., 128.],
+        std=[128., 128., 128.],
         bgr_to_rgb=True),
     backbone=dict(
         type='YOLOv8CSPDarknet',
@@ -109,7 +111,7 @@ model = dict(
         deepen_factor=deepen_factor,
         widen_factor=widen_factor,
         norm_cfg=norm_cfg,
-        act_cfg=dict(type='SiLU', inplace=True)),
+        act_cfg=dict(type='ReLU', inplace=True)),
     neck=dict(
         type='YOLOv8PAFPN',
         deepen_factor=deepen_factor,
@@ -118,7 +120,7 @@ model = dict(
         out_channels=[256, 512, last_stage_out_channels],
         num_csp_blocks=3,
         norm_cfg=norm_cfg,
-        act_cfg=dict(type='SiLU', inplace=True)),
+        act_cfg=dict(type='ReLU', inplace=True)),
     bbox_head=dict(
         type='YOLOv8Head',
         head_module=dict(
@@ -128,8 +130,9 @@ model = dict(
             widen_factor=widen_factor,
             reg_max=16,
             norm_cfg=norm_cfg,
-            act_cfg=dict(type='SiLU', inplace=True),
-            featmap_strides=strides),
+            act_cfg=dict(type='ReLU', inplace=True),
+            featmap_strides=strides,
+            skip_dfl=False),
         prior_generator=dict(
             type='mmdet.MlvlPointGenerator', offset=0.5, strides=strides),
         bbox_coder=dict(type='DistancePointBBoxCoder'),
@@ -237,9 +240,10 @@ train_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=True),
     collate_fn=dict(type='yolov5_collate'),
     dataset=dict(
-        type=dataset_type,
+	type=dataset_type,
         data_root=data_root,
-        ann_file=train_ann_file,
+        metainfo=metainfo,
+	ann_file=train_ann_file,
         data_prefix=dict(img=train_data_prefix),
         filter_cfg=dict(filter_empty_gt=False, min_size=32),
         pipeline=train_pipeline))
@@ -269,6 +273,7 @@ val_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
+        metainfo=metainfo,
         test_mode=True,
         data_prefix=dict(img=val_data_prefix),
         ann_file=val_ann_file,
